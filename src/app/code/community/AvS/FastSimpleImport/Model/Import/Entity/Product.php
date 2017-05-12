@@ -1560,6 +1560,10 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
                     continue;
                 }
 
+                if (!is_numeric($this->_newSku[$rowData[self::COL_SKU]]['entity_id'])) {
+                    continue;
+                }
+
                 $row['product_id'] = $this->_newSku[$sku]['entity_id'];
                 $row['stock_id'] = isset($rowData['stock_id']) ? $rowData['stock_id'] : 1;
 
