@@ -1321,22 +1321,62 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
             $tableName = Mage::getModel('importexport/import_proxy_product_resource')->getProductCategoryTable();
         }
         if ($categoriesData) {
-            $categoriesIn = array();
-            $delProductId = array();
+            $categoriesIn = [];
+            $affectedProductIds = [];
 
             foreach ($categoriesData as $delSku => $categories) {
-                $productId      = $this->_newSku[$delSku]['entity_id'];
+                $productId  = $this->_newSku[$delSku]['entity_id'];
+                $affectedProductIds[] = $productId;
 
-                foreach ($categories as $categoryId => $position) {
-                    $delProductId[$productId] = $productId;
-                    $categoriesIn[] = array('product_id' => $productId, 'category_id' => $categoryId, 'position' => (int) $position);
+                foreach (array_keys($categories) as $categoryId) {
+                    $categoriesIn[] = ['product_id' => $productId, 'category_id' => $categoryId, 'position' => 1];
                 }
             }
-            if (Mage_ImportExport_Model_Import::BEHAVIOR_APPEND != $this->getBehavior() && sizeof($delProductId)) {
-                $this->_connection->delete(
-                    $tableName,
-                    $this->_connection->quoteInto('product_id IN (?)', $delProductId)
-                );
+
+            if (Mage_ImportExport_Model_Import::BEHAVIOR_APPEND != $this->getBehavior()) {
+                if (true) { //@todo make switch that allows you to manage all categories.
+                    $externalIdAttr = $this->_getCategoryAttribute('external_id');
+
+                    //Select all non-protected categories.
+                    $select = $this->_connection->select()
+                        ->from(['main_table' => $tableName], ['product_id', 'category_id'])->where('product_id IN(?)', $affectedProductIds)
+                        ->join(
+                            ['external_id_attr' => $externalIdAttr->getBackendTable()],
+                            implode(' AND ', [
+                                '`main_table`.`category_id` = `external_id_attr`.`entity_id`',
+                                $this->_connection->quoteInto('`external_id_attr`.`attribute_id` = ?', $externalIdAttr->getId()),
+                                '`external_id_attr`.`value` IS NOT NULL'
+                            ]),
+                            []
+                        );
+
+                    $availableCategories = $this->_connection->fetchAll($select);
+                    foreach ($availableCategories as $key => $availableCategory) {
+                        foreach ($categoriesIn as $categoryIn) {
+                            if ($availableCategory['product_id'] == $categoryIn['product_id']
+                                && $availableCategory['category_id'] == $categoryIn['category_id']
+                            ) {
+                                unset($availableCategories[$key]);
+                            }
+                        }
+                    }
+                    $deleteCategories = $availableCategories;
+
+                    if ($deleteCategories) {
+                        $deleteWhere = [];
+                        foreach ($deleteCategories as $deleteCategory) {
+                            $whereStmt = [];
+                            foreach ($deleteCategory as $field => $value) {
+                                $whereStmt[] = $this->_connection->quoteInto("{$field} = ?", $value);
+                            }
+                            $deleteWhere[] = '(' . implode(' AND ', $whereStmt) . ')';
+                        }
+
+                        $this->_connection->delete($tableName, implode(' OR ', $deleteWhere));
+                    }
+                } else {
+
+                }
             }
             if ($categoriesIn) {
                 $this->_connection->insertOnDuplicate($tableName, $categoriesIn, array('position'));
@@ -1722,7 +1762,6 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
         return $this;
     }
 
-
     /**
      * Common validation
      *
@@ -1898,7 +1937,6 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
         return $mediaValueTableName;
     }
 
-
     /**
      * @param $sku
      * @return array|false
@@ -1912,85 +1950,6 @@ class AvS_FastSimpleImport_Model_Import_Entity_Product extends AvS_FastSimpleImp
             return $this->_newSku[$sku];
         }
         return false;
-    }
-
-
-    /**
-     * Save product categories.
-     *
-     * @param array $categoriesData
-     * @return Mage_ImportExport_Model_Import_Entity_Product
-     */
-    protected function _saveProductCategories(array $categoriesData)
-    {
-        static $tableName = null;
-
-        if (!$tableName) {
-            $tableName = Mage::getModel('importexport/import_proxy_product_resource')->getProductCategoryTable();
-        }
-        if ($categoriesData) {
-            $categoriesIn = [];
-            $affectedProductIds = [];
-
-            foreach ($categoriesData as $delSku => $categories) {
-                $productId  = $this->_newSku[$delSku]['entity_id'];
-                $affectedProductIds[] = $productId;
-
-                foreach (array_keys($categories) as $categoryId) {
-                    $categoriesIn[] = ['product_id' => $productId, 'category_id' => $categoryId, 'position' => 1];
-                }
-            }
-
-            if (Mage_ImportExport_Model_Import::BEHAVIOR_APPEND != $this->getBehavior()) {
-                if (true) { //@todo make switch that allows you to manage all categories.
-                    $externalIdAttr = $this->_getCategoryAttribute('external_id');
-
-                    //Select all non-protected categories.
-                    $select = $this->_connection->select()
-                        ->from(['main_table' => $tableName], ['product_id', 'category_id'])->where('product_id IN(?)', $affectedProductIds)
-                        ->join(
-                            ['external_id_attr' => $externalIdAttr->getBackendTable()],
-                            implode(' AND ', [
-                                '`main_table`.`category_id` = `external_id_attr`.`entity_id`',
-                                $this->_connection->quoteInto('`external_id_attr`.`attribute_id` = ?', $externalIdAttr->getId()),
-                                '`external_id_attr`.`value` IS NOT NULL'
-                            ]),
-                            []
-                        );
-
-                    $availableCategories = $this->_connection->fetchAll($select);
-                    foreach ($availableCategories as $key => $availableCategory) {
-                        foreach ($categoriesIn as $categoryIn) {
-                            if ($availableCategory['product_id'] == $categoryIn['product_id']
-                                && $availableCategory['category_id'] == $categoryIn['category_id']
-                            ) {
-                                unset($availableCategories[$key]);
-                            }
-                        }
-                    }
-                    $deleteCategories = $availableCategories;
-
-                    if ($deleteCategories) {
-                        $deleteWhere = [];
-                        foreach ($deleteCategories as $deleteCategory) {
-                            $whereStmt = [];
-                            foreach ($deleteCategory as $field => $value) {
-                                $whereStmt[] = $this->_connection->quoteInto("{$field} = ?", $value);
-                            }
-                            $deleteWhere[] = '(' . implode(' AND ', $whereStmt) . ')';
-                        }
-
-                        $this->_connection->delete($tableName, implode(' OR ', $deleteWhere));
-                    }
-                } else {
-
-                }
-            }
-            if ($categoriesIn) {
-                $this->_connection->insertOnDuplicate($tableName, $categoriesIn, array('position'));
-            }
-        }
-        return $this;
     }
 
     /**
