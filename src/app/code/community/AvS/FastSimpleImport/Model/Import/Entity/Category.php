@@ -1400,10 +1400,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                     '_ontap_attribute_value' => '',
                     '_ontap_attribute_logic' => '',
                 ));
-
-                //only add if we've found data
+                
                 //todo check if we've got all values, there should be three, else it will throw an error here.
-                if ($smartAttributes) {
+                if (array_filter($smartAttributes)) {
                     if (! isset($onTapData[$categoryId]['attribute_codes'])) {
                         $onTapData[$categoryId]['attribute_codes'] = array();
                         $onTapData[$categoryId]['smart_attributes'] = array();
