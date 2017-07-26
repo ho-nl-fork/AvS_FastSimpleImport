@@ -25,6 +25,14 @@
                 </rewrite>
             </importexport>
         </models>
+        <resources>
+            <fastsimpleimport_setup>
+                <setup>
+                    <module>AvS_FastSimpleImport</module>
+                    <class>Mage_Catalog_Model_Resource_Setup</class>
+                </setup>
+            </fastsimpleimport_setup>
+        </resources>
 
         <helpers>
             <fastsimpleimport>
