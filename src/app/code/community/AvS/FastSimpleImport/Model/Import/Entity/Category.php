@@ -630,7 +630,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                         $backModel = $attribute->getBackendModel();
                         $attrTable = $attribute->getBackend()->getTable();
                         $attrParams = $this->_attributes[$attrCode];
-                        $storeIds  = array(0);
+                        $storeIds  = [];
 
                         if ('select' == $attrParams['type']) {
                             if (isset($attrParams['options'][Mage::helper('fastsimpleimport')->strtolower($attrValue)]))
@@ -653,6 +653,8 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                             } elseif (self::SCOPE_STORE == $attribute->getIsGlobal()) {
                                 $storeIds = array($rowStore);
                             }
+                        } else {
+                            $storeIds = [0];
                         }
 
                         foreach ($storeIds as $storeId) {
