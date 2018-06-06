@@ -518,12 +518,40 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
 
                 foreach ($attributes as $attributeId => $storeValues) {
                     foreach ($storeValues as $storeId => $storeValue) {
-                        $tableData[] = array(
-                            'entity_id'      => $entityId,
-                            'entity_type_id' => $this->_entityTypeId,
-                            'attribute_id'   => $attributeId,
-                            'store_id'       => $storeId,
-                            'value'          => $storeValue
+                        // For storeId 0 we *must* save the NULL value into DB otherwise product collections can not load the store specific values
+                        if ($storeId == 0 || ! is_null($storeValue)) {
+                            $tableData[] = array(
+                                'entity_id'      => $entityId,
+                                'entity_type_id' => $this->_entityTypeId,
+                                'attribute_id'   => $attributeId,
+                                'store_id'       => $storeId,
+                                'value'          => $storeValue
+                            );
+                        } else {
+                            /** @var Magento_Db_Adapter_Pdo_Mysql $connection */
+                            $connection = $this->_connection;
+                            $connection->delete($tableName, array(
+                                'entity_id=?'      => (int) $entityId,
+                                'entity_type_id=?' => (int) $this->_entityTypeId,
+                                'attribute_id=?'   => (int) $attributeId,
+                                'store_id=?'       => (int) $storeId,
+                            ));
+                        }
+                    }
+
+                    if (Mage_ImportExport_Model_Import::BEHAVIOR_APPEND != $this->getBehavior()) {
+                        /**
+                         * If the store based values are not provided for a particular store,
+                         * we default to the default scope values.
+                         * In this case, remove all the existing store based values stored in the table.
+                         **/
+                        $where = $this->_connection->quoteInto('store_id NOT IN (?)', array_keys($storeValues)) .
+                            $this->_connection->quoteInto(' AND attribute_id = ?', $attributeId) .
+                            $this->_connection->quoteInto(' AND entity_id = ?', $entityId) .
+                            $this->_connection->quoteInto(' AND entity_type_id = ?', $this->_entityTypeId);
+
+                        $this->_connection->delete(
+                            $tableName, $where
                         );
                     }
                 }
