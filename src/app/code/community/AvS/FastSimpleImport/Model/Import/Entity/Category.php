@@ -597,7 +597,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                         'parent_id'   => $parentCategory['entity_id'],
                         'level'       => $parentCategory['level'] + 1,
                         'created_at'  => empty($rowData['created_at']) ? now()
-                                : gmstrftime($strftimeFormat, strtotime($rowData['created_at'])),
+                            : gmstrftime($strftimeFormat, strtotime($rowData['created_at'])),
                         'updated_at'  => now(),
                         'position'    => $rowData['position']
                     );
@@ -1430,12 +1430,26 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                     '_ontap_attribute_value' => '',
                     '_ontap_attribute_logic' => '',
                 ));
-                
+
                 //todo check if we've got all values, there should be three, else it will throw an error here.
                 if (array_filter($smartAttributes)) {
                     if (! isset($onTapData[$categoryId]['attribute_codes'])) {
                         $onTapData[$categoryId]['attribute_codes'] = array();
                         $onTapData[$categoryId]['smart_attributes'] = array();
+                    }
+                    if (!is_array($onTapData[$categoryId]['attribute_codes'])) {
+                        if ($onTapData[$categoryId]['attribute_codes'] == '') {
+                            $onTapData[$categoryId]['attribute_codes'] = [];
+                        } else {
+                            $onTapData[$categoryId]['attribute_codes'] = [$onTapData[$categoryId]['attribute_codes']];
+                        }
+                    }
+                    if (!is_array($onTapData[$categoryId]['smart_attributes'])) {
+                        if ($onTapData[$categoryId]['smart_attributes'] == '') {
+                            $onTapData[$categoryId]['smart_attributes'] = [];
+                        } else {
+                            $onTapData[$categoryId]['smart_attributes'] = [$onTapData[$categoryId]['smart_attributes']];
+                        }
                     }
 
                     $smartAttributes = array_combine(array('attribute', 'value', 'link'),  $smartAttributes);
@@ -1459,6 +1473,9 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                     if (! isset($onTapData[$categoryId]['heroproducts'])) {
                         $onTapData[$categoryId]['heroproducts'] = array();
                     }
+                    if (!is_array($onTapData[$categoryId]['heroproducts'])) {
+                        $onTapData[$categoryId]['heroproducts'] = [$onTapData[$categoryId]['heroproducts']];
+                    }
                     $onTapData[$categoryId]['heroproducts'][] = $rowData['_ontap_heroproducts'];
                 }
             }
@@ -1468,6 +1485,7 @@ class AvS_FastSimpleImport_Model_Import_Entity_Category extends Mage_ImportExpor
                 foreach ($onTapData as $catId => &$onTapRow) {
                     if (! empty($onTapRow['attribute_codes'])) {
                         $onTapRow['attribute_codes'] = implode(',', array_unique($onTapRow['attribute_codes']));
+                        $onTapRow['attribute_codes'] = ltrim(',', $onTapRow['attribute_codes']);
                     }
                     if (! empty($onTapRow['heroproducts'])) {
                         $onTapRow['heroproducts'] = implode(',', $onTapRow['heroproducts']);
